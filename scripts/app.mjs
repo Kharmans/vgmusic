@@ -13,7 +13,7 @@ export class VGMusicConfig extends HandlebarsApplicationMixin(ApplicationV2) {
     tag: 'form',
     window: { title: 'VGMusic.ConfigTitle', icon: 'fas fa-music', resizable: true, minimizable: true },
     modal: true,
-    classes: ['vgmusic-config', 'dnd5e2'],
+    classes: ['dnd5e2'],
     form: {
       handler: VGMusicConfig.formHandler,
       closeOnSubmit: false,
@@ -26,18 +26,8 @@ export class VGMusicConfig extends HandlebarsApplicationMixin(ApplicationV2) {
       deletePlaylist: VGMusicConfig.deletePlaylist
     },
     dragDrop: [
-      {
-        dragSelector: '.playlist-section-item[data-reorderable="true"]',
-        dropSelector: '.playlist-section-list',
-        permissions: { dragstart: true, drop: true },
-        callbacks: {}
-      },
-      {
-        dragSelector: null,
-        dropSelector: '.playlist-section[data-section]',
-        permissions: { dragstart: false, drop: true },
-        callbacks: {}
-      }
+      { dragSelector: '.playlist-section-item[data-reorderable="true"]', dropSelector: '.playlist-section-list', permissions: { dragstart: true, drop: true }, callbacks: {} },
+      { dragSelector: null, dropSelector: '.playlist-section[data-section]', permissions: { dragstart: false, drop: true }, callbacks: {} }
     ]
   };
 
@@ -48,20 +38,39 @@ export class VGMusicConfig extends HandlebarsApplicationMixin(ApplicationV2) {
 
   /**
    * Create a new configuration instance
-   * @param {Object} object The document object to configure
-   * @param {Object} [options={}] Additional application options
+   * @param {object} object The document object to configure
+   * @param {object} [options] Additional application options
    */
   constructor(object, options = {}) {
     super(options);
     this.document = object || game.settings.get(CONST.moduleId, CONST.settings.defaultMusic);
   }
 
+  /**
+   * Get the update data prefix based on document type
+   * @returns {string} The prefix path for flag updates
+   */
   get updateDataPrefix() {
     return this.isDocument ? 'flags.vgmusic' : 'data.vgmusic';
   }
 
+  /**
+   * Check if the configured object is a Document
+   * @returns {boolean} True if document instance
+   */
   get isDocument() {
     return this.document instanceof foundry.abstract.Document;
+  }
+
+  /**
+   * Get the document type name for playlist sections lookup
+   * Handles both Documents and DataModels (like PrototypeToken)
+   * @returns {string|undefined} The document type name
+   */
+  get documentTypeName() {
+    if (this.document.documentName) return this.document.documentName;
+    if (this.document.constructor.name === 'PrototypeToken') return 'Token';
+    return undefined;
   }
 
   /**
@@ -69,9 +78,10 @@ export class VGMusicConfig extends HandlebarsApplicationMixin(ApplicationV2) {
    */
   initializeConfig() {
     try {
-      const sections = CONST.playlistSections[this.document.documentName];
+      const docType = this.documentTypeName;
+      const sections = CONST.playlistSections[docType];
       if (!sections) {
-        console.error('VGMusic | No sections found for document type:', this.document.documentName);
+        console.error('VGMusic | No sections found for document type:', docType);
         this.config = [];
         return;
       }
@@ -106,14 +116,14 @@ export class VGMusicConfig extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   /** @override */
-  _prepareContext(options) {
+  _prepareContext(_options) {
     this.initializeConfig();
     const playlistConfig = this.config.map((section, index) => ({ ...section, index, labelLocalized: game.i18n.localize(section.label) }));
     const buttons = [
       { type: 'submit', icon: 'fas fa-save', label: 'VGMusic.UI.Save' },
       { type: 'button', action: 'reset', icon: 'fas fa-undo', label: 'VGMusic.UI.Reset' }
     ];
-    return { playlistConfig, buttons, documentType: this.document.documentName };
+    return { playlistConfig, buttons, documentType: this.documentTypeName };
   }
 
   /** @override */
@@ -151,7 +161,6 @@ export class VGMusicConfig extends HandlebarsApplicationMixin(ApplicationV2) {
   setDraggableAttributes() {
     const items = this.element.querySelectorAll('.playlist-section-item');
     items.forEach((item, index) => {
-      const li = item.closest('li');
       const section = this.config[index];
       const isSortable = section?.sortable !== false;
       item.setAttribute('draggable', isSortable ? 'true' : 'false');
@@ -161,6 +170,8 @@ export class VGMusicConfig extends HandlebarsApplicationMixin(ApplicationV2) {
 
   /**
    * Handle drag start event for internal reordering
+   * @param {DragEvent} event - The drag event
+   * @returns {boolean} Whether drag started successfully
    */
   onDragStart(event) {
     try {
@@ -183,6 +194,7 @@ export class VGMusicConfig extends HandlebarsApplicationMixin(ApplicationV2) {
 
   /**
    * Handle drag over event for internal reordering
+   * @param {DragEvent} event - The drag event
    */
   onDragOver(event) {
     event.preventDefault();
@@ -205,6 +217,7 @@ export class VGMusicConfig extends HandlebarsApplicationMixin(ApplicationV2) {
 
   /**
    * Handle drag over event for external drops
+   * @param {DragEvent} event - The drag event
    */
   onDragOverExternal(event) {
     event.preventDefault();
@@ -214,6 +227,9 @@ export class VGMusicConfig extends HandlebarsApplicationMixin(ApplicationV2) {
 
   /**
    * Find the target element for dropping
+   * @param {DragEvent} event - The drag event
+   * @param {HTMLElement[]} items - List of potential drop targets
+   * @returns {HTMLElement|null} The closest drop target element
    */
   getDragTarget(event, items) {
     try {
@@ -233,6 +249,8 @@ export class VGMusicConfig extends HandlebarsApplicationMixin(ApplicationV2) {
 
   /**
    * Handle drop event for internal reordering
+   * @param {DragEvent} event - The drop event
+   * @returns {Promise<boolean>} Whether drop was handled successfully
    */
   async onDropReorder(event) {
     try {
@@ -270,6 +288,8 @@ export class VGMusicConfig extends HandlebarsApplicationMixin(ApplicationV2) {
 
   /**
    * Handle drop event for external playlist/sound drops
+   * @param {DragEvent} event - The drop event
+   * @returns {Promise<boolean>} Whether drop was handled successfully
    */
   async onDropExternal(event) {
     try {
@@ -304,7 +324,7 @@ export class VGMusicConfig extends HandlebarsApplicationMixin(ApplicationV2) {
       if (!prevData?.priority) updateData[`music.${section}.priority`] = sectionConfig.priority;
       await this.updateObject(updateData);
       return true;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -320,6 +340,8 @@ export class VGMusicConfig extends HandlebarsApplicationMixin(ApplicationV2) {
 
   /**
    * Create a visual placeholder for drop position
+   * @param {HTMLElement} targetItem - The target element to place placeholder near
+   * @param {boolean} dropAfter - Whether to place placeholder after target
    */
   createDropPlaceholder(targetItem, dropAfter) {
     const placeholder = document.createElement('div');
@@ -349,6 +371,7 @@ export class VGMusicConfig extends HandlebarsApplicationMixin(ApplicationV2) {
 
   /**
    * Capture current form state for playlist enablement
+   * @returns {object} Form state object
    */
   _captureFormState() {
     const state = {};
@@ -360,6 +383,11 @@ export class VGMusicConfig extends HandlebarsApplicationMixin(ApplicationV2) {
     return state;
   }
 
+  /**
+   * Update the document with new data
+   * @param {object} data - The data to update
+   * @returns {Promise<void>} Resolves when update completes
+   */
   async updateObject(data) {
     const expandedData = Object.entries(data).reduce((acc, [key, value]) => {
       acc[`${this.updateDataPrefix}.${key}`] = value;
@@ -383,7 +411,9 @@ export class VGMusicConfig extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   /**
-   * Static action handlers
+   * Handle reset action
+   * @param {Event} event - The click event
+   * @param {HTMLFormElement} _form - The form element
    */
   static handleReset(event, _form) {
     event.preventDefault();
@@ -391,19 +421,36 @@ export class VGMusicConfig extends HandlebarsApplicationMixin(ApplicationV2) {
     this.render(false);
   }
 
-  static async openPlaylist(event, target) {
+  /**
+   * Open playlist sheet action
+   * @param {Event} _event - The click event
+   * @param {HTMLElement} target - The target element
+   */
+  static async openPlaylist(_event, target) {
     const playlistId = target.closest('.playlist-section').dataset.itemId;
     const playlist = game.playlists.get(playlistId);
     if (playlist) playlist.sheet.render(true);
   }
 
-  static async deletePlaylist(event, target) {
+  /**
+   * Delete playlist action
+   * @param {Event} _event - The click event
+   * @param {HTMLElement} target - The target element
+   */
+  static async deletePlaylist(_event, target) {
     const section = target.closest('.playlist-section').dataset.section;
     await this.updateObject({ [`music.-=${section}`]: null });
   }
 
-  /** @override */
-  static async formHandler(event, form, formData) {
+  /**
+   * Handle form submission
+   * @param {Event} _event - The submit event
+   * @param {HTMLFormElement} _form - The form element
+   * @param {object} formData - The form data
+   * @returns {Promise<boolean>} Whether submission succeeded
+   * @override
+   */
+  static async formHandler(_event, _form, formData) {
     const updateData = Object.fromEntries(Object.entries(formData.object).filter(([key]) => key.startsWith('music.')));
     if (Object.keys(updateData).length > 0) {
       try {
@@ -422,6 +469,10 @@ export class VGMusicConfig extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 }
 
+/**
+ * Add scene control buttons for music suppression
+ * @param {object} controls - The scene controls object
+ */
 export function getSceneControlButtons(controls) {
   try {
     if (controls.sounds && controls.sounds.tools) {
@@ -433,7 +484,7 @@ export function getSceneControlButtons(controls) {
         toggle: true,
         visible: true,
         active: game.settings.get(CONST.moduleId, CONST.settings.suppressArea),
-        onChange: (event, active) => {
+        onChange: (_event, active) => {
           game.settings.set(CONST.moduleId, CONST.settings.suppressArea, active);
         }
       };
@@ -445,7 +496,7 @@ export function getSceneControlButtons(controls) {
         toggle: true,
         visible: true,
         active: game.settings.get(CONST.moduleId, CONST.settings.suppressCombat),
-        onChange: (event, active) => {
+        onChange: (_event, active) => {
           game.settings.set(CONST.moduleId, CONST.settings.suppressCombat, active);
         }
       };
@@ -455,54 +506,11 @@ export function getSceneControlButtons(controls) {
   }
 }
 
-export function getActorSheetHeaderControls(sheet, buttons) {
-  try {
-    if (!game.user.isGM) return;
-    const clickHandler = (event) => {
-      event.preventDefault();
-      const config = new VGMusicConfig(sheet.document);
-      config.render(true);
-    };
-    buttons.unshift({
-      label: game.i18n.localize('VGMusic.CombatMusic'),
-      class: 'configure-combat-music',
-      icon: 'fas fa-music',
-      onClick: clickHandler
-    });
-  } catch (error) {
-    console.error('VGMusic | Error adding actor sheet header controls:', error);
-  }
-}
-
-export function getActorSheetHeaderButtons(sheet, buttons) {
-  try {
-    if (!game.user.isGM) return;
-    buttons.unshift({
-      label: game.i18n.localize('VGMusic.CombatMusic'),
-      class: 'configure-combat-music',
-      icon: 'fas fa-music',
-      onclick: (ev) => new VGMusicConfig(sheet.document).render(true)
-    });
-  } catch (error) {
-    console.error('VGMusic | Error adding actor sheet header controls:', error);
-  }
-}
-
-export function getTidySheetHeaderControls(api) {
-  api.registerActorHeaderControls?.({
-    controls: [
-      {
-        icon: 'fas fa-music',
-        label: game.i18n.localize('VGMusic.CombatMusic'),
-        async onClickAction() {
-          if (!game.user.isGM) return;
-          new VGMusicConfig(this.document).render(true);
-        }
-      }
-    ]
-  });
-}
-
+/**
+ * Handle scene config render to inject music button
+ * @param {object} app - The scene config application
+ * @param {HTMLElement} html - The rendered HTML
+ */
 export function handleSceneConfigRender(app, html) {
   try {
     const playlistSoundSelect = html.querySelector('select[name="playlistSound"]');
@@ -536,18 +544,34 @@ export function handleSceneConfigRender(app, html) {
   }
 }
 
+/**
+ * Handle combat updates to trigger music changes
+ * @param {object} combat - The combat document
+ * @param {object} updateData - The update data
+ */
 export function handleUpdateCombat(combat, updateData) {
   if (combat.started && (updateData.turn != null || updateData.round != null)) game.vgmusic?.musicController?.playCurrentTrack();
 }
 
+/**
+ * Handle combat deletion to stop music
+ */
 export function handleDeleteCombat() {
   game.vgmusic?.musicController?.playCurrentTrack();
 }
 
+/**
+ * Handle canvas ready to start music
+ */
 export function handleCanvasReady() {
   game.vgmusic?.musicController?.playCurrentTrack();
 }
 
+/**
+ * Handle scene updates for music flag changes
+ * @param {object} scene - The scene document
+ * @param {object} updateData - The update data
+ */
 export function handleUpdateScene(scene, updateData) {
   if ('flags' in updateData && updateData.flags?.[CONST.moduleId]) game.vgmusic?.musicController?.playCurrentTrack();
   if ('active' in updateData) {
@@ -556,10 +580,89 @@ export function handleUpdateScene(scene, updateData) {
   }
 }
 
-export function handleUpdateActor(actor, updateData) {
+/**
+ * Handle actor updates for music flag changes
+ * @param {object} _actor - The actor document
+ * @param {object} updateData - The update data
+ */
+export function handleUpdateActor(_actor, updateData) {
   if ('flags' in updateData && updateData.flags?.[CONST.moduleId]) game.vgmusic?.musicController?.playCurrentTrack();
 }
 
+/**
+ * Handle token updates for music flag changes
+ * @param {Document} _token - The token document
+ * @param {object} updateData - The update data
+ */
+export function handleUpdateToken(_token, updateData) {
+  if ('flags' in updateData && updateData.flags?.[CONST.moduleId]) game.vgmusic?.musicController?.playCurrentTrack();
+}
+
+/**
+ * Handle TokenConfig render to inject music configuration
+ * @param {object} app - The application
+ * @param {HTMLElement} html - The rendered HTML
+ * @param {object} _context - Render context
+ * @param {object} _options - Render options
+ */
+export function handleTokenConfigRender(app, html, _context, _options) {
+  try {
+    if (!game.user.isGM) return;
+    const identityTab = html.querySelector('[data-application-part="identity"]') || html.querySelector('[data-tab="identity"].tab') || html.querySelector('.tab[data-tab="identity"]');
+    if (!identityTab) return;
+    const nameField = identityTab.querySelector('.form-group');
+    if (!nameField) return;
+    const isPrototype = app.constructor.name.includes('Prototype');
+    const token = isPrototype ? app.actor?.prototypeToken : app.token;
+    if (!token) return;
+    const formGroup = document.createElement('div');
+    formGroup.className = 'form-group';
+    const label = document.createElement('label');
+    label.textContent = game.i18n.localize('VGMusic.CombatMusic');
+    const formFields = document.createElement('div');
+    formFields.className = 'form-fields';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'vgmusic-token-config';
+    button.innerHTML = `<i class="fas fa-music"></i> ${game.i18n.localize('VGMusic.ConfigTitle')}`;
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      new VGMusicConfig(token).render(true);
+    });
+    formFields.appendChild(button);
+    formGroup.appendChild(label);
+    formGroup.appendChild(formFields);
+    nameField.insertAdjacentElement('afterend', formGroup);
+    const isLinked = token.actorLink ?? false;
+    if (isLinked && !isPrototype) {
+      const useTokenMusic = token.getFlag?.(CONST.moduleId, 'useTokenMusic') ?? false;
+      const checkboxGroup = document.createElement('div');
+      checkboxGroup.className = 'form-group';
+      const checkLabel = document.createElement('label');
+      checkLabel.textContent = game.i18n.localize('VGMusic.UseTokenMusic.Label');
+      const checkFields = document.createElement('div');
+      checkFields.className = 'form-fields';
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.name = 'flags.vgmusic.useTokenMusic';
+      checkbox.checked = useTokenMusic;
+      checkFields.appendChild(checkbox);
+      checkboxGroup.appendChild(checkLabel);
+      checkboxGroup.appendChild(checkFields);
+      const hint = document.createElement('p');
+      hint.className = 'hint';
+      hint.textContent = game.i18n.localize('VGMusic.UseTokenMusic.Hint');
+      checkboxGroup.appendChild(hint);
+      formGroup.insertAdjacentElement('afterend', checkboxGroup);
+    }
+  } catch (error) {
+    console.error('VGMusic | Error adding token config button:', error);
+  }
+}
+
+/**
+ * Handle game ready to start music after delay
+ */
 export async function handleReady() {
   setTimeout(() => {
     game.vgmusic?.musicController?.playCurrentTrack();

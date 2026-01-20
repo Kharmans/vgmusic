@@ -1,28 +1,45 @@
 import { CONST } from './config.mjs';
-import { PlaylistContext, FadingTrack, isHeadGM } from './helpers.mjs';
+import { FadingTrack, isHeadGM, PlaylistContext } from './helpers.mjs';
 
 /**
  * Core music controller for managing playlist playback
  */
 export class MusicController {
+  /** Creates a new MusicController instance */
   constructor() {
     this.currentContext = null;
     this.fadingTracks = [];
     this.pendingPlayback = null;
   }
 
+  /**
+   * Get the current combat for the active scene
+   * @returns {object|undefined} The current combat or undefined
+   */
   get currentCombat() {
     return game.combats.find((combat) => combat.scene === this.currentScene) || game.combats.find((combat) => combat.active);
   }
 
+  /**
+   * Get the currently active scene
+   * @returns {object|undefined} The active scene or undefined
+   */
   get currentScene() {
     return game.scenes.find((scene) => scene.active);
   }
 
+  /**
+   * Get the currently playing track
+   * @returns {object|null} The current track or null
+   */
   get currentTrack() {
     return this.currentContext?.track;
   }
 
+  /**
+   * Get stored info for the current track
+   * @returns {object} Track info or empty object
+   */
   get currentTrackInfo() {
     if (!this.currentTrack) return {};
     const track = this.currentTrack;
@@ -61,6 +78,28 @@ export class MusicController {
   }
 
   /**
+   * Determine which document to use for combatant music
+   * @param {object} token - The combatant's token
+   * @param {object} actor - The combatant's actor
+   * @returns {Document|null} The document to use for music lookup
+   */
+  _getCombatantMusicSource(token, actor) {
+    if (!token && !actor) return null;
+    const tokenHasMusic = token?.getFlag(CONST.moduleId, 'music.combat.playlist');
+    const actorHasMusic = actor?.getFlag(CONST.moduleId, 'music.combat.playlist');
+    if (token && !token.actorLink) return tokenHasMusic ? token : actor;
+    if (token && token.actorLink) {
+      if (tokenHasMusic && !actorHasMusic) return token;
+      if (tokenHasMusic && actorHasMusic) {
+        const useTokenMusic = token.getFlag(CONST.moduleId, 'useTokenMusic');
+        if (useTokenMusic) return token;
+      }
+    }
+
+    return actor;
+  }
+
+  /**
    * Get all current playlist contexts
    * @returns {PlaylistContext[]} Array of playlist contexts
    */
@@ -78,8 +117,9 @@ export class MusicController {
     }
     if (combat) {
       for (const combatant of combat.combatants) {
-        if (combatant.actor) {
-          const ctx = PlaylistContext.fromDocument(combatant.actor, 'combat', combat);
+        const musicSource = this._getCombatantMusicSource(combatant.token, combatant.actor);
+        if (musicSource) {
+          const ctx = PlaylistContext.fromDocument(musicSource, 'combat', combat);
           if (ctx) contexts.push(ctx);
         }
       }
@@ -115,9 +155,13 @@ export class MusicController {
    */
   sortPlaylists(a, b) {
     const combat = this.currentCombat;
-    const currentActor = combat?.combatant?.actor;
-    if (a.contextEntity === currentActor) return -1;
-    if (b.contextEntity === currentActor) return 1;
+    const currentCombatant = combat?.combatant;
+    const currentToken = currentCombatant?.token;
+    const currentActor = currentCombatant?.actor;
+    const isCurrentA = a.contextEntity === currentToken || a.contextEntity === currentActor;
+    const isCurrentB = b.contextEntity === currentToken || b.contextEntity === currentActor;
+    if (isCurrentA && !isCurrentB) return -1;
+    if (isCurrentB && !isCurrentA) return 1;
     const silentMode = game.settings.get(CONST.moduleId, CONST.settings.silentCombatMusicMode);
     if (silentMode === CONST.silentModes.lastActor) {
       const combatants = combat?.turns || [];
@@ -154,8 +198,7 @@ export class MusicController {
     const allContexts = this.getAllCurrentPlaylists();
     const filteredContexts = allContexts.filter(this.filterPlaylists.bind(this));
     const sortedContexts = filteredContexts.sort(this.sortPlaylists.bind(this));
-    const result = sortedContexts.length > 0 ? sortedContexts[0] : null;
-    return result;
+    return sortedContexts.length > 0 ? sortedContexts[0] : null;
   }
 
   /**
@@ -172,7 +215,7 @@ export class MusicController {
    * @param {Document} entity - Entity to get data from
    * @param {string} playlistId - Playlist ID
    * @param {string} trackId - Track ID
-   * @returns {Object} Playlist data
+   * @returns {object} Playlist data
    */
   getPlaylistData(entity, playlistId, trackId) {
     const data = entity.getFlag(CONST.moduleId, `playlist.${playlistId}.${trackId}`);

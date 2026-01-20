@@ -1,4 +1,5 @@
 {
+  "PLAYLIST.ViewSheet": "Edit Playlist",
   "VGMusic.CombatMusic": "Combat Music",
   "VGMusic.ConfigHelp": "Drag and drop playlists onto sections to assign music.",
   "VGMusic.ConfigTitle": "Music Configuration",
@@ -25,5 +26,6 @@
   "VGMusic.Settings.SuppressCombat.Name": "Suppress Combat Music",
   "VGMusic.UI.Reset": "Reset",
   "VGMusic.UI.Save": "Save",
-  "PLAYLIST.ViewSheet": "Edit Playlist"
+  "VGMusic.UseTokenMusic.Hint": "Override actor combat music with this token's configuration",
+  "VGMusic.UseTokenMusic.Label": "Use Token Music"
 }

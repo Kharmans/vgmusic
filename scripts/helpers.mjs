@@ -6,7 +6,7 @@ import { CONST } from './config.mjs';
 
 /**
  * Get the first available GM user
- * @returns {User|null} First active GM user
+ * @returns {object|null} First active GM user
  */
 export function getFirstAvailableGM() {
   return game.users.filter((user) => user.isGM && user.active).sort((a, b) => a.id.localeCompare(b.id))[0] || null;
@@ -22,7 +22,7 @@ export function isHeadGM() {
 
 /**
  * Get property from object using dot notation
- * @param {Object} object - Source object
+ * @param {object} object - Source object
  * @param {string} path - Dot notation path
  * @returns {*} Property value
  */
@@ -32,9 +32,10 @@ export function getProperty(object, path) {
 
 /**
  * Set property on object using dot notation
- * @param {Object} object - Target object
+ * @param {object} object - Target object
  * @param {string} path - Dot notation path
  * @param {*} value - Value to set
+ * @returns {boolean} Whether the property was set
  */
 export function setProperty(object, path, value) {
   return foundry.utils.setProperty(object, path, value);
@@ -44,6 +45,14 @@ export function setProperty(object, path, value) {
  * Playlist context class for managing music contexts
  */
 export class PlaylistContext {
+  /**
+   * @param {string} context - The context type ('area' or 'combat')
+   * @param {Document} contextEntity - The entity providing the context
+   * @param {object} playlist - The playlist to play
+   * @param {string|null} trackId - Specific track ID or null for default
+   * @param {number} priority - Priority level for sorting
+   * @param {Document|null} scopeEntity - Entity for progress tracking
+   */
   constructor(context, contextEntity, playlist, trackId, priority = 0, scopeEntity = null) {
     this.context = context;
     this.contextEntity = contextEntity;
@@ -53,8 +62,14 @@ export class PlaylistContext {
     this.scopeEntity = scopeEntity;
   }
 
+  /**
+   * Get the track to play from this context
+   * @returns {object|null} The track or null
+   */
   get track() {
-    return this.playlist?.sounds.get(this.trackId);
+    if (this.trackId) return this.playlist?.sounds.get(this.trackId);
+    const firstTrackId = this.playlist?.playbackOrder?.[0];
+    return firstTrackId ? this.playlist.sounds.get(firstTrackId) : null;
   }
 
   /**
@@ -91,6 +106,10 @@ export class PlaylistContext {
  * Fading track handler for smooth transitions
  */
 export class FadingTrack {
+  /**
+   * @param {object} track - The track to fade
+   * @param {number} fadeDuration - Duration of fade in milliseconds
+   */
   constructor(track, fadeDuration = 1000) {
     this.track = track;
     this.fadeDuration = fadeDuration;

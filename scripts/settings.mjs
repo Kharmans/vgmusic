@@ -1,11 +1,10 @@
-import { CONST } from './config.mjs';
 import { VGMusicConfig } from './app.mjs';
+import { CONST } from './config.mjs';
 
 /**
  * Register module settings and configuration menu
  */
 export function registerSettings() {
-  // Silent Combat Music Mode
   game.settings.register(CONST.moduleId, CONST.settings.silentCombatMusicMode, {
     name: 'VGMusic.Settings.SilentCombatMusicMode.Name',
     hint: 'VGMusic.Settings.SilentCombatMusicMode.Hint',
@@ -24,7 +23,6 @@ export function registerSettings() {
     }
   });
 
-  // Default Music Configuration Menu
   game.settings.registerMenu(CONST.moduleId, 'defaultMusicMenu', {
     name: 'VGMusic.Settings.DefaultMusic.Name',
     label: 'VGMusic.Settings.DefaultMusic.Label',
@@ -34,19 +32,14 @@ export function registerSettings() {
     restricted: true
   });
 
-  // Default Music Data
   game.settings.register(CONST.moduleId, CONST.settings.defaultMusic, {
     name: 'VGMusic.Settings.DefaultMusic.Name',
     scope: 'world',
     config: false,
     type: Object,
-    default: {
-      documentName: 'DefaultMusic',
-      data: { vgmusic: { music: {} } }
-    }
+    default: { documentName: 'DefaultMusic', data: { vgmusic: { music: {} } } }
   });
 
-  // Suppress Area Music
   game.settings.register(CONST.moduleId, CONST.settings.suppressArea, {
     name: 'VGMusic.Settings.SuppressArea.Name',
     scope: 'world',
@@ -58,7 +51,6 @@ export function registerSettings() {
     }
   });
 
-  // Suppress Combat Music
   game.settings.register(CONST.moduleId, CONST.settings.suppressCombat, {
     name: 'VGMusic.Settings.SuppressCombat.Name',
     scope: 'world',

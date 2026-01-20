@@ -1,27 +1,26 @@
-<div class="flexcol" autocomplete="off">
+<div class="flexcol standard-form vgmusic-config">
   <input type="hidden" name="documentType" value="{{documentType}}">
   {{#each playlistConfig as |section|}}
     <fieldset>
       <legend>{{section.labelLocalized}}</legend>
-
-      <div class="form-group playlist-section" data-section="{{section.id}}" data-item-id="{{section.playlist.id}}">
+      <div class="standard-form playlist-section" data-section="{{section.id}}" data-item-id="{{section.playlist.id}}">
         {{#if section.playlist}}
-          <div class="form-fields">
-            <div class="playlist-info">
+          <div class="form-group">
+            <label>{{localize "VGMusic.PlaylistSection.Combat"}}</label>
+            <div class="form-fields playlist-info">
               <i class="fas fa-music"></i>
               <span class="playlist-name">{{section.playlist.name}}</span>
-              <button type="button" data-action="openPlaylist" title="{{localize 'PLAYLIST.ViewSheet'}}">
+              <button type="button" data-action="openPlaylist" data-tooltip="{{localize 'PLAYLIST.ViewSheet'}}">
                 <i class="fas fa-edit"></i>
               </button>
-              <button type="button" data-action="deletePlaylist" title="{{localize 'Delete'}}">
+              <button type="button" data-action="deletePlaylist" data-tooltip="{{localize 'Delete'}}">
                 <i class="fas fa-trash"></i>
               </button>
             </div>
           </div>
-
-          <div class="form-fields">
-            <div class="form-group">
-              <label>{{localize "VGMusic.InitialTrack"}}</label>
+          <div class="form-group">
+            <label>{{localize "VGMusic.InitialTrack"}}</label>
+            <div class="form-fields">
               <select name="music.{{section.id}}.initialTrack">
                 {{#select section.data.initialTrack}}
                   <option value="">{{localize "VGMusic.Default"}}</option>
@@ -31,20 +30,19 @@
                 {{/select}}
               </select>
             </div>
-
-            {{#if section.allowPriority}}
-              <div class="form-group">
-                <label>{{localize "VGMusic.Priority"}}</label>
+          </div>
+          {{#if section.allowPriority}}
+            <div class="form-group">
+              <label>{{localize "VGMusic.Priority"}}</label>
+              <div class="form-fields">
                 <input type="number" name="music.{{section.id}}.priority" value="{{section.data.priority}}"
                   placeholder="0">
               </div>
-            {{/if}}
-          </div>
+            </div>
+          {{/if}}
         {{else}}
-          <div class="form-fields">
-            <div class="placeholder">
-              <i class="fas fa-music-slash"></i>
-              <span>{{localize "VGMusic.None"}}</span>
+          <div class="form-group">
+            <div class="form-fields">
               <p class="hint">{{localize "VGMusic.ConfigHelp"}}</p>
             </div>
           </div>
@@ -52,8 +50,7 @@
       </div>
     </fieldset>
   {{/each}}
-
-  <footer class="sheet-footer">
+  <footer class="flexrow">
     {{#each buttons as |button|}}
       <button type="{{button.type}}" {{#if button.action}}data-action="{{button.action}}" {{/if}}>
         <i class="{{button.icon}}"></i>

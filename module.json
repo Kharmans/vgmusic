@@ -14,28 +14,14 @@
   "compatibility": {
     "maximum": "13.999",
     "minimum": "13",
-    "verified": "13.348"
+    "verified": "13.351"
   },
   "description": "Advanced playlist management for FoundryVTT with area and combat music automation.",
   "download": "",
   "esmodules": [
     "scripts/vgmusic.mjs"
   ],
-  "flags": {
-    "hotReload": {
-      "extensions": [
-        "css",
-        "html",
-        "hbs",
-        "json"
-      ],
-      "paths": [
-        "styles",
-        "lang",
-        "templates"
-      ]
-    }
-  },
+  "flags": {},
   "id": "vgmusic",
   "languages": [
     {
@@ -47,9 +33,6 @@
   "license": "https://github.com/Sayshal/vgmusic?tab=License-1-ov-file",
   "manifest": "https://github.com/Sayshal/vgmusic/releases/latest/download/module.json",
   "readme": "https://github.com/Sayshal/vgmusic?tab=readme-ov-file",
-  "styles": [
-    "styles/vgmusic.css"
-  ],
   "title": "Video Game Music",
   "url": "https://github.com/Sayshal/vgmusic",
   "version": "69.420"
