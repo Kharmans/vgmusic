@@ -51,7 +51,8 @@ export class VGMusicConfig extends HandlebarsApplicationMixin(ApplicationV2) {
    * @returns {string} The prefix path for flag updates
    */
   get updateDataPrefix() {
-    return this.isDocument ? 'flags.vgmusic' : 'data.vgmusic';
+    if (this.isDocument || this.document.constructor.name === 'PrototypeToken') return 'flags.vgmusic';
+    return 'data.vgmusic';
   }
 
   /**
@@ -90,12 +91,12 @@ export class VGMusicConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         const sectionData = getProperty(data, `music.${key}`) || {};
         const playlistId = sectionData.playlist;
         const playlist = playlistId ? game.playlists.get(playlistId) : null;
-
         const tracks =
-          playlist?.playbackOrder?.map((id) => {
+          playlist?.playbackOrder?.reduce((obj, id) => {
             const track = playlist.sounds.get(id);
-            return { id, name: track.name };
-          }) || [];
+            obj[id] = track.name;
+            return obj;
+          }, {}) || {};
         return {
           id: key,
           label: sectionConfig.label,
@@ -316,7 +317,7 @@ export class VGMusicConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         sound = document;
       } else if (document instanceof Playlist) playlist = document;
       else return false;
-      const sectionConfig = CONST.playlistSections[this.document.documentName][section];
+      const sectionConfig = CONST.playlistSections[this.documentTypeName][section];
       if (!sectionConfig) return false;
       const updateData = { [`music.${section}.playlist`]: playlist.id, [`music.${section}.initialTrack`]: sound?.id || '' };
       const currentData = getProperty(this.document, this.updateDataPrefix) || {};
@@ -395,6 +396,18 @@ export class VGMusicConfig extends HandlebarsApplicationMixin(ApplicationV2) {
     }, {});
     if (this.isDocument) {
       const result = await this.document.update(expandedData);
+      this.render(false);
+      return result;
+    }
+    if (this.document.constructor.name === 'PrototypeToken') {
+      const actor = this.document.parent;
+      if (!actor) return;
+      const prototypeData = Object.entries(data).reduce((acc, [key, value]) => {
+        acc[`prototypeToken.flags.vgmusic.${key}`] = value;
+        return acc;
+      }, {});
+      const result = await actor.update(prototypeData);
+      this.document = actor.prototypeToken;
       this.render(false);
       return result;
     }

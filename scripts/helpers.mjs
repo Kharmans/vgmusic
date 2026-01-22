@@ -74,7 +74,7 @@ export class PlaylistContext {
 
   /**
    * Create playlist context from document
-   * @param {Document} document - Source document
+   * @param {Document|object} document - Source document or data model
    * @param {string} type - Music type ('area' or 'combat')
    * @param {Document} scopeEntity - Scope entity for progress tracking
    * @returns {PlaylistContext|null} Created context or null
@@ -86,6 +86,16 @@ export class PlaylistContext {
       if (!playlist) return null;
       const trackId = document.getFlag(CONST.moduleId, `music.${type}.initialTrack`) || null;
       const priority = document.getFlag(CONST.moduleId, `music.${type}.priority`) ?? 0;
+      return new this(type, document, playlist, trackId, priority, scopeEntity);
+    }
+    if (document?.constructor?.name === 'PrototypeToken') {
+      const section = document.flags?.[CONST.moduleId]?.music?.[type];
+      if (!section) return null;
+      const playlistId = section.playlist;
+      const playlist = playlistId ? game.playlists.get(playlistId) : null;
+      if (!playlist) return null;
+      const trackId = section.initialTrack || null;
+      const priority = section.priority ?? 0;
       return new this(type, document, playlist, trackId, priority, scopeEntity);
     }
     if (document.documentName === 'DefaultMusic') {

@@ -22,12 +22,7 @@
             <label>{{localize "VGMusic.InitialTrack"}}</label>
             <div class="form-fields">
               <select name="music.{{section.id}}.initialTrack">
-                {{#select section.data.initialTrack}}
-                  <option value="">{{localize "VGMusic.Default"}}</option>
-                  {{#each section.tracks as |track|}}
-                    <option value="{{track.id}}">{{track.name}}</option>
-                  {{/each}}
-                {{/select}}
+                {{{selectOptions section.tracks selected=section.data.initialTrack blank=(localize "VGMusic.Default")}}}
               </select>
             </div>
           </div>

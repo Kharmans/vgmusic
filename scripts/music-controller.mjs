@@ -2,6 +2,17 @@ import { CONST } from './config.mjs';
 import { FadingTrack, isHeadGM, PlaylistContext } from './helpers.mjs';
 
 /**
+ * Get document type name, treating PrototypeToken as 'Token'
+ * @param {Document|object} entity - The entity to check
+ * @returns {string|undefined} The document type name
+ */
+function getEntityTypeName(entity) {
+  if (entity?.documentName) return entity.documentName;
+  if (entity?.constructor?.name === 'PrototypeToken') return 'Token';
+  return undefined;
+}
+
+/**
  * Core music controller for managing playlist playback
  */
 export class MusicController {
@@ -81,22 +92,26 @@ export class MusicController {
    * Determine which document to use for combatant music
    * @param {object} token - The combatant's token
    * @param {object} actor - The combatant's actor
-   * @returns {Document|null} The document to use for music lookup
+   * @returns {Document|object|null} The document to use for music lookup
    */
   _getCombatantMusicSource(token, actor) {
     if (!token && !actor) return null;
     const tokenHasMusic = token?.getFlag(CONST.moduleId, 'music.combat.playlist');
+    const prototypeToken = actor?.prototypeToken;
+    const prototypeHasMusic = prototypeToken?.flags?.[CONST.moduleId]?.music?.combat?.playlist;
     const actorHasMusic = actor?.getFlag(CONST.moduleId, 'music.combat.playlist');
-    if (token && !token.actorLink) return tokenHasMusic ? token : actor;
-    if (token && token.actorLink) {
-      if (tokenHasMusic && !actorHasMusic) return token;
-      if (tokenHasMusic && actorHasMusic) {
-        const useTokenMusic = token.getFlag(CONST.moduleId, 'useTokenMusic');
-        if (useTokenMusic) return token;
-      }
+    if (token && !token.actorLink) {
+      if (tokenHasMusic) return token;
+      return actorHasMusic ? actor : null;
     }
-
-    return actor;
+    if (token && token.actorLink) {
+      if (tokenHasMusic) {
+        const useTokenMusic = token.getFlag(CONST.moduleId, 'useTokenMusic');
+        if (useTokenMusic || (!prototypeHasMusic && !actorHasMusic)) return token;
+      }
+      if (prototypeHasMusic) return prototypeToken;
+    }
+    return actorHasMusic ? actor : null;
   }
 
   /**
@@ -115,7 +130,7 @@ export class MusicController {
       const ctx = PlaylistContext.fromDocument(scene, 'combat', combat);
       if (ctx) contexts.push(ctx);
     }
-    if (combat) {
+    if (combat?.combatant) {
       for (const combatant of combat.combatants) {
         const musicSource = this._getCombatantMusicSource(combatant.token, combatant.actor);
         if (musicSource) {
@@ -158,8 +173,9 @@ export class MusicController {
     const currentCombatant = combat?.combatant;
     const currentToken = currentCombatant?.token;
     const currentActor = currentCombatant?.actor;
-    const isCurrentA = a.contextEntity === currentToken || a.contextEntity === currentActor;
-    const isCurrentB = b.contextEntity === currentToken || b.contextEntity === currentActor;
+    const currentPrototype = currentActor?.prototypeToken;
+    const isCurrentA = a.contextEntity === currentToken || a.contextEntity === currentActor || a.contextEntity === currentPrototype;
+    const isCurrentB = b.contextEntity === currentToken || b.contextEntity === currentActor || b.contextEntity === currentPrototype;
     if (isCurrentA && !isCurrentB) return -1;
     if (isCurrentB && !isCurrentA) return 1;
     const silentMode = game.settings.get(CONST.moduleId, CONST.settings.silentCombatMusicMode);
@@ -171,21 +187,24 @@ export class MusicController {
         do {
           i = (i - 1 + combatants.length) % combatants.length;
           const actor = combatants[i]?.actor;
-          if (a.contextEntity === actor) return -1;
-          if (b.contextEntity === actor) return 1;
+          const prototype = actor?.prototypeToken;
+          if (a.contextEntity === actor || a.contextEntity === prototype) return -1;
+          if (b.contextEntity === actor || b.contextEntity === prototype) return 1;
         } while (i !== (startIdx + 1) % combatants.length);
       }
     } else if (silentMode === CONST.silentModes.area) {
-      if (a.contextEntity.documentName !== 'Actor' && a.context === 'area') return -1;
-      if (b.contextEntity.documentName !== 'Actor' && b.context === 'area') return 1;
+      if (getEntityTypeName(a.contextEntity) !== 'Actor' && a.context === 'area') return -1;
+      if (getEntityTypeName(b.contextEntity) !== 'Actor' && b.context === 'area') return 1;
     } else if (silentMode === CONST.silentModes.generic) {
-      if (a.contextEntity.documentName !== 'Actor' && a.context === 'combat') return -1;
-      if (b.contextEntity.documentName !== 'Actor' && b.context === 'combat') return 1;
+      if (getEntityTypeName(a.contextEntity) !== 'Actor' && a.context === 'combat') return -1;
+      if (getEntityTypeName(b.contextEntity) !== 'Actor' && b.context === 'combat') return 1;
     }
     if (a.priority !== b.priority) return b.priority - a.priority;
-    if (a.contextEntity.documentName !== b.contextEntity.documentName) {
+    const aTypeName = getEntityTypeName(a.contextEntity);
+    const bTypeName = getEntityTypeName(b.contextEntity);
+    if (aTypeName !== bTypeName) {
       const priorities = CONST.documentSortPriority;
-      return priorities.indexOf(b.contextEntity.documentName) - priorities.indexOf(a.contextEntity.documentName);
+      return priorities.indexOf(bTypeName) - priorities.indexOf(aTypeName);
     }
     return 0;
   }
